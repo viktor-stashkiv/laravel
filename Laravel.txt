@@ -1,0 +1,313 @@
+Laravel 5
+1) Встановити composer за допомогою команд наведених нижче
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php -r "if (hash_file('sha384', 'composer-setup.php') === '756890a4488ce9024fc62c56153228907f1545c228516cbf63f885e036d37e9a59d27d63f46af1d4d07ee0f76181c7d3') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+php composer-setup.php
+php -r "unlink('composer-setup.php');" // перейти в потрібну папку та 2 рази нажати ентер
+
+Вставити команду php composer.phar global require laravel/installer // глобальна версія
+
+Вствити команду php composer.phar create-project --prefer-dist laravel/laravel name_project // створення проекту локально
+
+переходимо в cd name_project та запускаємо сервер php artisan serve 
+
+скачуємо npm переходимо в кталог з проектом і пишемо в консолі npm install
+
+2) Скачуємо composer.exe і вибираємо версію php 7.3 якщо потрібно то добавляємо path
+
+за допомогою компосера створюємо проект composer create-project laravel/laravel example-app
+
+переходимо в проект cd example-app
+
+скачуємо npm переходимо в кталог з проектом і пишемо в консолі npm install
+-------------------------------------------------------------------------
+Переходимо в роути в файл web.php і добавляємо
+
+Route::get('/', function () {
+    return view('home'); // підключення вигляду з папки views (home без закінчення php)
+});
+
+В папці views створюємо папку layouts і вній створюємo шаблон app.blade.php
+
+views/layouts/app.blade.php
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    @yield('content') // в цей шаблом буде поміщатися любий код
+</body>
+</html>
+
+--------------------------------------------------------------------------
+views/home.blade.php
+
+Наслідуємо шаблон за допомогою команди @extends('layouts.app')
+
+@section('content') // підключаємо шаблон
+<h1>Home</h1>
+@endsection // закриваємо секцію
+
+--------------------------------------------------------------------------
+@include('папка.файл')
+
+Створюємо в папці views папку inc та будь який файл який буде імпортуватися
+
+views/inc/eside.blade.php
+
+@section('aside')
+<div class="aside">
+    <h4>Бокова панель</h4>
+    <p>Any text</p>
+    @show // щоб можна було добавляти код в любих файлах за допомогою @section('aside')@parant код @endsection
+</div>
+// не потрібно писати @endsection
+
+Імпорт @include('inc.aside') // папка inc файл aside
+
+---------------------------------------------------
+
+Підключення окремого файлу на вибрану сторінку
+
+@if(Request::is('/'))
+	@include('inc.hero')
+@endif
+
+---------------------------------------
+
+Підключення css та js
+
+<link rel="stylesheet" href="{{URL::asset('css/app.css')}}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" integrity="undefined" crossorigin="anonymous">
+<link rel="stylesheet" href="{{URL::asset('js/app.css')}}">
+
+npm install
+
+resources/sass/app.scss
+
+пишимо необхідні css властивості
+
+відкриваємо термінал і пишимо npm run dev потім npm run watch 
+
+---------------------------------------------------
+
+Після тегу <form> добавляти @csrf !!!!!!!!!!!!!!!!!
+
+<form action="{{route('contact-form')}}" method="post">
+        @csrf <!-- key для Laravel 7-8 {{ csrf_field() }}-->
+</form>
+-----------------------------------------
+
+URL обробник 
+<form action="{{route('contact-form')}}" method="post">
+
+Route::post('/contact/submit', function () {
+    dd(Request::all()); // виведе всі дані які були введені у форму
+})->name('contact-form'); // створення URL обробника за допомого методa name('')
+
+----------------------------------------------------
+
+Створення контроллера
+
+php artisan make:controller ContactController
+Контроллер створиться в папці app/Http/Controllers/
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class ContactController extends Controller
+{
+    public function submit(){
+        return "Okey";
+    }
+}
+
+Добавлення маршруту routes/web.php
+
+Route::post('/contact/submit', 'App\Http\Controllers\ContactController@submit')->name('contact-form');
+// ContactController - назва контроллера @submit - назва метода контроллера
+----------------------------------------------------------------
+
+Валідація 
+class ContactController extends Controller
+{
+    public function submit(Request $req){
+        $validation = $req->validate([
+            'name' => 'required|min:5|max:50', // name ім'я інпута в формі required - обов'язкове поле
+            'email' => 'required|min:5|max:50'
+        ]);
+    }
+}
+
+ВИВІД ПОМИЛОК 
+@if($errors->any())
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach($errors->all() as $error)
+                        <li>{{$error}}</li>
+                    @endforeach
+                </ul>
+            </div>
+@endif
+
+--------------------------------
+Запити 
+
+php artisan make:requests ContactRequests
+
+Створиться ContactRequests в папці App/Http/Requests/
+
+class ContactRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        return true; // написати true
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        return ['name' => 'required|min:5|max:50',
+                'email' => 'required|min:5|max:50'
+        ];
+    }
+}
+
+Далі в ContactController підключити клас
+
+use App\Http\Requests\ContactRequest;
+
+та в параметрах записати 
+
+public function submit(ContactRequest $req){
+
+}
+-------------------------------------------------------------------
+
+БАЗА ДАНИХ НАЛАШТУВАННЯ .env
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel_blog
+DB_USERNAME=root
+DB_PASSWORD=root
+
+Створення моделі 
+
+php artisan make:model Contact -m // -m файл міграції
+
+Міграції database/migrations
+
+вибрати файл створеної міграції 
+
+public function up()
+    {
+        Schema::create('contacts', function (Blueprint $table) {
+            $table->id('id'); // id
+            $table->string('name'); // string
+            $table->string('email'); // string до 255 символів
+            $table->text('message'); // text багато символів
+            $table->timestamps();
+        });
+    }
+
+Перейти в термінал і виконати команду php artisan migrate після чого в phpMyAdmin створяться відповідні поля
+
+php artisan migrate:rollback // повернути 1 дію назад
+php artisan migrate:rollback --step=3 // кількіть кроків які потрібно повернути назад
+php artisan migrate:reset // обнулення міграції
+
+Переходимо в контроллер піключаємо простір імен моделі 
+
+use App\Models\Contact; // Contact назва моделі класу
+
+ public function submit(ContactRequest $req){
+        $contact = new Contact(); // створюємо екземпляр класу моделі
+        $contact->name = $req->input('name'); // в базу даних в поле з ім'ям name вставляємо значення з форми під назвою name
+        $contact->email = $req->input('email');
+        $contact->message = $req->input('message');
+
+        $contact->save(); // виконуємо запит в БД
+
+        return redirect()->route('home')->with('success','Повідомлення відправлено!'); // Редірект на головну сторінку. with створення сесії назва - значення
+    }
+СЕСІЯ ---------------
+@if(session('success')) // якщо така сесія існує то вивести її значення
+    <div class="alert alert-success">
+        {{session('success')}}
+    </div>
+@endif
+
+----------------------------------------------
+ВИВІД ДАНИХ З БД
+
+Створюємо url обробник 
+
+Route::get('/contact/all', 'App\Http\Controllers\ContactController@allData')->name('contact-data');
+
+
+Створюємо новий метод
+public function submit(ContactRequest $req){
+        $contact = new Contact();
+        $contact->name = $req->input('name');
+        $contact->email = $req->input('email');
+        $contact->message = $req->input('message');
+
+        $contact->save();
+
+        return redirect()->route('home')->with('success','Повідомлення відправлено!');
+    }
+
+    public function allData(){ ***********************
+        $contact = new Contact; об'єкт БД можна без дужок бо немає параметрів
+        dd($contact->all()); // вивід всіх даних з БД
+****************************
+        2 варіант
+	dd(Contact::all();
+    }*************************
+
+В контролері 
+public function allData(){
+     return view('messages',['data'=>Contact::all()]); // підключаємо вид та передаємо 2 параметр з всіма даними
+}
+
+Створюємо відповідний вигляд
+
+@extends('layouts.app')
+
+@section('title-block')All messages @endsection
+
+@section('content')
+<div class="width-50">
+    <h1>Home page</h1>
+    @foreach($data as $el) // дата глобальна змінна 
+        <div class="alert alert-info">
+            <h3>{{$el->email}}</h3> // виводимо необхідні поля
+        </div>
+    @endforeach
+</div>
+@endsection
+
+public function allData(){
+     $contact = new Contact;
+     return view('messages',['data'=>$contact->orderBy('id','asc')->take(1)->get()]); // сортування по полю id та вибір одного запису
+ skip() // пропуск записів
+ where('email','=','stashkiv77@gmail.com')->get(); // провірка на відповідність
+ 
+
+
