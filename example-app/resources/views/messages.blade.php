@@ -10,13 +10,10 @@
             <h3>{{$el->name}}</h3>
             <small>{{$el->email}}</small><br>
             <small>{{$el->created_at}}</small><br><br>
-            <a href="#"><button class="btn btn-warning">Детальніше</button></a>
+            <a href="{{route('contact-data-one',$el->id)}}"><button class="btn btn-warning">Детальніше</button></a>
         </div>
     @endforeach
 </div>
 @endsection
 
-@section('aside')
-    @parent
-    <h6>Any text...</h6>
-@endsection
+

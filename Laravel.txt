@@ -308,6 +308,142 @@ public function allData(){
      return view('messages',['data'=>$contact->orderBy('id','asc')->take(1)->get()]); // сортування по полю id та вибір одного запису
  skip() // пропуск записів
  where('email','=','stashkiv77@gmail.com')->get(); // провірка на відповідність
- 
+---------------------------------------------------------------------------------
+
+Кнопка детальніше по ID по динамічному паремтрі data/{{id}}
+-----------
+@extends('layouts.app')
+
+@section('title-block')All messages @endsection
+
+@section('content')
+<div class="width-50">
+    <h1>Home page</h1>
+    @foreach($data as $el)
+        <div class="alert alert-info">
+            <h3>{{$el->name}}</h3>
+            <small>{{$el->email}}</small><br>
+            <small>{{$el->created_at}}</small><br><br>
+
+		// перенапрвляємо на сторінку детальніше та передаємо туди id запису
+
+            <a href="{{route('contact-data-one',$el->id)}}"><button class="btn btn-warning">Детальніше</button></a>
+        </div>
+
+    @endforeach
+</div>
+@endsection
+------------
+
+Route::get('/contact/all/{id}', 'App\Http\Controllers\ContactController@showOneMessage')->name('contact-data-one');
+// {id} динамічний параметр може бути 1,2,3,4
+
+Створюємо відповідну функцію 
+
+public function showOneMessage($id){
+        $contact = new Contact; // об'єкт БД
+        return view('one-messages',['data'=>$contact->find($id)]); // перенаправити на вигляд one-message та передати дані з БД в змінну $data з відповідним ID та його значеннями
+    }
+
+view/one-message ----- 
+
+@extends('layouts.app')
+
+@section('title-block'){{$data->message}} @endsection
+
+@section('content')
+<div class="width-50">
+    <h1>{{$data->message}}</h1>
+        <div class="alert alert-info">
+            <h3>{{$data->name}}</h3> // беремо дані зі змінни $data
+            <small>{{$data->email}}</small><br>
+            <small>{{$data->created_at}}</small><br><br>
+
+	// перенаправлями на сторінку з редагування даних
+
+            <a href="{{route('contact-update',$data->id)}}"><button class="btn btn-primary">Редагувати</button></a> 
+
+            <a href="{{route('contact-delete',$data->id)}}"><button class="btn btn-danger">Видалити</button></a>
+        </div>
+
+</div>
+@endsection
+
+----- РЕДАГУВАННЯ ДАНИХ ПО ID
+// роут на обновлення
+Route::get('/contact/all/{id}/update', 'App\Http\Controllers\ContactController@updateMessage')->name('contact-update');
+
+// метод беру дані з БД та передає на сторінку оновлення даних
+
+public function updateMessage($id){
+        $contact = new Contact;
+        return view('update-message',['data'=>$contact->find($id)]);
+    }
+
+сторінка оновлення даних 
+
+@extends('layouts.app')
+
+@section('title-block')Оновлення даних ID {{$data->id}} @endsection
+
+@section('content')
+<div class="width-50">
+    <h1>Оновлення id = {{$data->id}}</h1>
+    <form action="{{route('contact-update-submit',$data->id)}}" method="post"> // передає дані та id з форми у контроллер
+        {{ csrf_field() }}
+
+        <div class="form-group">
+            <label for="name">І'мя</label>
+            <input type="text" name="name" value="{{$data->name}}" id="name" placeholder="Enter your name" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="text" name="email" value="{{$data->email}}" id="email" placeholder="Enter your email" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label for="message">Повідомлення</label>
+            <textarea name="message" id="message" placeholder="Напишіть повідомлення..." class="form-control"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Обновити</button>
+    </form>
+</div>
+@endsection
+
+----- post - передає дані  |  get - на сторнку
+Route::post('/contact/all/{id}/update', 'App\Http\Controllers\ContactController@updateMessageSubmit')->name('contact-update-submit');
+
+метод ---- 
+
+public function updateMessageSubmit($id,ContactRequest $req){
+        $contact = Contact::find($id); // шукає дані за переданим ID та оновляє їх
+        $contact->name = $req->input('name');
+        $contact->email = $req->input('email');
+        $contact->message = $req->input('message');
+
+        $contact->save();
+
+        return redirect()->route('contact-data-one',$id)->with('success','Дані обновлено!');
+    }
+
+--------------------------------- ВИДАЛЕННЯ З БД
+<a href="{{route('contact-delete',$data->id)}}"><button class="btn btn-danger">Видалити</button></a>
+
+Route::get('/contact/all/{id}/delete', 'App\Http\Controllers\ContactController@deleteMessage')->name('contact-delete');
+
+ public function deleteMessage($id){
+        Contact::find($id)->delete(); // видалення запису по id
+
+	// редірект на сторінку зі всіма записами
+        return redirect()->route('contact-data')->with('success','Запис видалено!');
+    }
+
+
+
+
+
+
 
 

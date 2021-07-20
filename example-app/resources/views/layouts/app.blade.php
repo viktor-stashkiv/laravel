@@ -19,9 +19,12 @@
             @yield('content')
             </div>
 
-            <div class="col-4">
-            @include('inc.aside')
-            </div>
+
+            @if(Request::is('/') || Request::is('about') || Request::is('contact'))
+                <div class="col-4">
+                    @include('inc.aside')
+                </div>
+            @endif
         </div>
     </div>
 </body>
