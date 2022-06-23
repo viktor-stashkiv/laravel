@@ -492,9 +492,684 @@ public function show($id)
         return view('post.show',compact('post'));
     }
     
+Зовнішній ключ
+$table->unsignedBigInteger('category_id')->nullable();
+$table->index('category_id','post_category_idx'); // створення індекса з назвою post_category_idx
+
+$table->foreign('category_id','post_category_fk')->on('categories')->references('id'); // вибір поля для зовнішнього ключа, назва, в якій таблиці та поле  
+php artisan migrate:fresh
+
+
+
+HasMany()
+В моделі створити метод наприклад posts для категорій
+class Category extends Model
+{
+    use HasFactory;
+
+    public function posts() *** 
+    {
+        return $this->hasMany(Post::class,'category_id','id'); // 1 - таблиця(*модель*) з якої будуть повернуті дані 2 - назва зовнішнього ключа 3 - id для зов. ключа
+        
+        // дані повернуться в контроллер при імпорті таблиці(*моделі*) в клас
+    }
+}
+
+public function index()
+    {
+        $category = Category::find(1);
+        dd($category->posts); // Поверне всі пости в яких category_id = 1 із моделі Post
+    }
+
+
+
+belongsTo()
+class Post extends Model
+{
+    use HasFactory;
+    use SoftDeletes;
+    protected $table = 'posts';
+    protected $guarded = false; // or value []
+    
+    public function category()
+    {
+    	return belongsTo(Category::class,'category_id','id);
+    }
+}
     
     
     
+    
+belongsToMany()
+public function tags()
+    {
+        return $this->belongsToMany(Tag::class,'post_tags','post_id','tag_id');
+    }
+
+
+
+Multiple selects
+<div class="form-group">
+                <label for="tags">Tags</label>
+                <select multiple class="form-control" name="tags[]" id="tags">
+
+                    @foreach($tags as $tag)
+                        <option value="{{ $tag->id }}">{{ $tag->title }}</option>
+                    @endforeach
+
+          	</select>
+</div>
+
+public function store()
+    {
+        $data = request()->validate([
+            'title' => 'string',
+            'content' => 'string',
+            'image' => 'string',
+            'category_id' => '',
+            'tags' => '',
+        ]);
+
+        $tags = $data['tags'];
+        unset($data['tags']);
+
+        $post = Post::create($data);
+
+
+        /*foreach ($tags as $tag) // костиль
+        {
+            PostTag::firstOrCreate([
+                'tag_id' => $tag,
+                'post_id' => $post->id,
+            ]);
+        }*/
+
+        $post->tags()->attach($tags); // Привз'язує окремий масив до загального запиту SQL
+        $post->tags()->sync($tags); // Привз'язує окремий масив до загального запиту SQL з видаленням старих даних використовується для оновлення даних UPDATE
+
+
+        return redirect()->route('post.index');
+    }
+    
+    
+    
+    
+Error помилки обробка 
+
+$data = request()->validate([
+            'title' => 'required|string',
+            'content' => 'string',
+            'image' => 'string',
+            'category_id' => '',
+            'tags' => '',
+        ]);
+        
+@error('title') // якщо поле title пусто то спрацює цей код
+         <p class="text-danger">{{ $message }}</p>
+@enderror
+
+{{ old('title') }} // поверне старі дані в value якщо якесь з полів не пройшло валідацію
+ 
+  
+  
+
+Зв'язка по конвенції Laravel 
+  php artisan make:model Post -m
+  php artisan make:model Category -m
+  php artisan make:model Tag -m
+  php artisan make:migration create_post_tag --create
+  php artisan migrate:fresh  
+  
+  public function index()
+    {
+        $post = Post::find(1);
+        $category = Category::find(1);
+        dd($category->posts);
+        dd($post->category);
+    }
+    
+class Post extends Model
+{
+    use HasFactory;
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+}
+
+class Category extends Model
+{
+    use HasFactory;
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+}
+
+
+
+Group
+Route::group(['namespace' => 'Post'],function (){
+    Route::get('/posts','IndexController')->name('post.index');
+    Route::get('/posts/create','CreateController')->name('post.create');
+
+    Route::post('/posts/create','StoreController')->name('post.store');
+    Route::get('/posts/{post}','ShowController')->name('post.show');
+    Route::get('/posts/{post}/edit','EditController')->name('post.edit');
+    Route::patch('/posts/{post}','UpdateController')->name('post.update');
+    Route::delete('/posts/{post}','DestroyController')->name('post.delete');
+});
+
+
+
+
+Request для однометодних класів
+php artisan make:request Post/StoreRequest // створить папку Post а в ній клас StoreRequest
+
+class StoreRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        return true; // true - буде працювати fasle - ні
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules() // правила для валідації
+    {
+        return [
+                'title' => 'required|string',
+                'content' => 'string',
+                'image' => 'string',
+                'category_id' => '',
+                'tags' => '',
+        ];
+    }
+}
+
+
+public function __invoke(UpdateRequest $request,Post $post)
+    {
+        $data = $request->validated(); // поверне масив ключ => значення
+    }
+
+
+
+
+
+Seed and Factory
+php artisan make:factory PostFactory -m Post // створити фабрику та зв'язати з моделлю Post
+
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Category;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class PostFactory extends Factory
+{
+    //protected $model = Post::class; // зв'язка з моделлю
+    /**
+     * Define the model's default state.
+     *
+     * @return array
+     */
+    public function definition()
+    {
+        return [
+            'title' => $this->faker->title,
+            'content' => $this->faker->text,
+            'image' => $this->faker->imageUrl(),
+            'likes' => random_int(1,2000),
+            'is_published' => 1,
+            'category_id' => Category::get()->random()->id,
+        ];
+    }
+}
+
+Seed class
+
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Post;
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        Post::factory(100)->create(); // 100 - кількість записів
+
+        // \App\Models\User::factory(10)->create();
+    }
+}
+
+php artisan migrate --seed // виконати міграцію 
+php artisan migrate:fresh --seed
+
+
+
+Пагінація Pagination
+class IndexController extends BaseController
+{
+    public function __invoke()
+    {
+        $posts = Post::paginate(10); **** // по скільки постів відображати
+
+        return view('post.index',compact('posts'));
+    }
+}
+
+php artisan vendor:publish --tag=laravel-pagination
+
+Заходимо в App\Providers\AppServiceProvider
+
+public function boot()
+    {
+        Paginator::defaultView('vendor.pagination.bootstrap-4');
+    }
+    
+Виводимо
+
+<div class="mt-3">
+        {{ $posts->links() }}
+</div>
+
+
+
+Filters фільтр нариклад http://localhost:8000/posts?category_id=5&title=abc
+Створити Request 
+<?php
+
+namespace App\Http\Requests\Post;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class FilterRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        return [
+            'title' => 'string',
+            'content' => 'string',
+            'image' => 'string',
+            'category_id' => '',
+            'tags' => '',
+        ];
+    }
+}
+
+Створити в Http папку Filters та в ній 3 класи
+<?php
+
+namespace App\Http\Filters;
+
+use Illuminate\Database\Eloquent\Builder;
+
+interface FilterInterface
+{
+    public function apply(Builder $builder);
+}
+
+
+<?php
+
+namespace App\Http\Filters;
+
+use Illuminate\Database\Eloquent\Builder;
+
+abstract class AbstractFilter implements FilterInterface
+{
+    /** @var array */
+    private $queryParams = [];
+
+    /**
+     * AbstractFilter constructor.
+     *
+     * @param array $queryParams
+     */
+    public function __construct(array $queryParams)
+    {
+        $this->queryParams = $queryParams;
+    }
+
+    abstract protected function getCallbacks(): array;
+
+    public function apply(Builder $builder)
+    {
+        $this->before($builder);
+
+        foreach ($this->getCallbacks() as $name => $callback) {
+            if (isset($this->queryParams[$name])) {
+                call_user_func($callback, $builder, $this->queryParams[$name]);
+            }
+        }
+    }
+
+    /**
+     * @param Builder $builder
+     */
+    protected function before(Builder $builder)
+    {
+    }
+
+    /**
+     * @param string $key
+     * @param mixed|null $default
+     *
+     * @return mixed|null
+     */
+    protected function getQueryParam(string $key, $default = null)
+    {
+        return $this->queryParams[$key] ?? $default;
+    }
+
+    /**
+     * @param string[] $keys
+     *
+     * @return AbstractFilter
+     */
+    protected function removeQueryParam(string ...$keys)
+    {
+        foreach ($keys as $key) {
+            unset($this->queryParams[$key]);
+        }
+
+        return $this;
+    }
+}
+
+
+<?php
+
+namespace App\Http\Filters;
+
+use Illuminate\Database\Eloquent\Builder;
+
+class PostFilter extends AbstractFilter
+{
+    public const TITLE = 'title';
+    public const CONTENT = 'content';
+    public const CATEGORY_ID = 'category_id';
+
+
+    protected function getCallbacks(): array
+    {
+        return [
+            self::TITLE => [$this, 'title'],
+            self::CONTENT => [$this, 'content'],
+            self::CATEGORY_ID => [$this, 'categoryId'],
+        ];
+    }
+
+    public function title(Builder $builder, $value)
+    {
+        $builder->where('title', 'like', "%{$value}%");
+    }
+
+    public function content(Builder $builder, $value)
+    {
+        $builder->where('content', 'like', "%{$value}%");
+    }
+
+    public function categoryId(Builder $builder, $value)
+    {
+        $builder->where('category_id', $value);
+    }
+}
+
+Створити в в моделях папку Trais
+<?php
+
+namespace App\Models\Traits;
+
+use App\Http\Filters\FilterInterface;
+use Illuminate\Database\Eloquent\Builder;
+
+trait Filterable
+{
+
+    /**
+     * @param Builder $builder
+     * @param FilterInterface $filter
+     *
+     * @return Builder
+     */
+    public function scopeFilter(Builder $builder, FilterInterface $filter)
+    {
+        $filter->apply($builder);
+
+        return $builder;
+    }
+}
+
+Та реалізувати старт
+class IndexController extends BaseController
+{
+    public function __invoke(FilterRequest $request)
+    {
+        $data = $request->validated();
+
+        $filter = app()->make(PostFilter::class,['queryParams' => array_filter($data)]);
+
+        $posts = Post::filter($filter)->paginate(10);
+
+
+        return view('post.index',compact('posts'));
+    }
+}
+
+Вигляд
+<div class="mt-3">
+        {{ $posts->withQueryString()->links() }} // пагінація з урахуванням query string
+</div>
+
+
+
+
+Auth
+php artisan ui:auth
+
+
+
+
+
+Middleware
+ php artisan make:middleware AdminPanelMiddleware
+ 
+ Route::group(['namespace' => 'Admin','prefix' => 'admin', 'middleware***' => 'admin'],function (){
+    Route::group(['namespace' => 'Post'],function (){
+        Route::get('/post','IndexController')->name('admin.post.index');
+    });
+});
+
+
+
+
+
+Policy
+php artisan make:policy AdminPolicy -m User
+
+ public function view(User $user, User $model)
+    {
+        return $model->role === 'admin';
+        
+    }
+    
+protected $policies = [ ***************
+        // 'App\Models\Model' => 'App\Policies\ModelPolicy',
+        User::class => AdminPolicy::class,
+    ];
+    
+public function __invoke(FilterRequest $request)
+    {
+        $this->authorize('view',auth()->user());
+        }
+
+@can('view',auth()->user())
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{route('admin.post.index')}}">Admin</a>
+                    </li>
+@endcan
+
+
+
+Resurces CSRF OFF
+php artisan make:resource Post/PostResource // створити ресурс в папці Post
+
+ресурс повертає масив 
+ 
+    public function toArray($request)
+    {
+        return
+            [
+                'id' => $this->id,
+                'title' => $this->title,
+                'content' => $this->content,
+                'image' => $this->image,
+            ];
+    }
+    
+    CSRF OFF
+    Http/Middleware/VerifyCsrfToken.php
+    protected $except = [
+        '/posts',
+        '/posts/*'
+    ];
+    
+    
+    
+    class UpdateController extends BaseController
+{
+    public function __invoke(UpdateRequest $request,Post $post)
+    {
+        $data = $request->validated();
+
+        $this->service->update($post,$data);
+
+        return new PostResource($post); ***
+
+        //return redirect()->route('post.show',$post->id);
+    }
+
+}
+    
+    
+    
+    class IndexController extends BaseController
+{
+    public function __invoke(FilterRequest $request)
+    {
+        //$this->authorize('view',auth()->user());
+
+        $data = $request->validated();
+        
+        $page = $data['page'] ?? 1; ***
+        $perPage = $data['perPage'] ?? 10; ***
+
+
+        $filter = app()->make(PostFilter::class,['queryParams' => array_filter($data)]);
+
+        $posts = Post::filter($filter)->paginate($perPage, ['*'], 'page', $page); ***
+
+        return PostResource::collection($posts); ***
+        //return view('post.index',compact('posts'));
+    }
+}
+
+
+
+JWT
+http://localhost:8000/api/auth/login?email=stashkiv77@gmail.com&password=20010602333
+
+    php artisan jwt:secret
+    lCOrV5WNVcVrL7X4posLS7FaW1DUvizVNw35BZet1PXn6DVGWfTPez3vDFPzJnVY
+
+
+
+
+Guzzle HTTP
+
+<?php
+
+namespace App\Components;
+
+use GuzzleHttp\Client;
+
+class importDataClient
+{
+    public $client;
+
+    public function __construct()
+    {
+        $this->client = new Client([
+           
+            'base_uri' => 'https://jsonplaceholder.typicode.com/',
+           
+            'timeout'  => 2.0,
+            'verify' => false, // відключення https
+        ]);
+    }
+}
+
+
+
+***
+public function handle()
+    {
+        $import = new ImportDataClient();
+        $response = $import->client->request('GET','posts');
+        $data = json_decode($response->getBody()->getContents());
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
 
 
 
