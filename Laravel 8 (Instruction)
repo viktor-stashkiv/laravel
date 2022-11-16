@@ -1154,6 +1154,121 @@ public function handle()
         $response = $import->client->request('GET','posts');
         $data = json_decode($response->getBody()->getContents());
     }
+    
+    
+BLOG ********************************************************************************
+
+composer require laravel/ui
+php artisan ui bootstrap
+php artisan ui:auth
+
+npm install && npm run dev
+npm run dev
+
+php artisan migrate
+
+ public function up()
+    {
+        Schema::create('posts', function (Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->text('content');
+            $table->unsignedBigInteger('category_id')->nullable();
+            $table->index('category_id','post_category_idx');
+            $table->foreign('category_id','post_category_fk')->on('categories')->references('id');
+            $table->timestamps();
+        });
+    }
+    
+    
+      public function up()
+    {
+        Schema::create('post_tags', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('post_id');
+            $table->unsignedBigInteger('tag_id');
+            $table->timestamps();
+
+            // IDX
+            $table->index('post_id','post_tag_post_idx');
+            $table->index('tag_id','post_tag_tag_idx');
+
+            // FK
+            $table->foreign('post_id','post_tag_post_fk')->on('posts')->references('id');
+            $table->foreign('tag_id','post_tag_tag_fk')->on('tags')->references('id');
+
+        });
+
+
+class Category extends Model
+{
+    use HasFactory;
+
+    protected $table = 'categories'; // явна прив'язка моделі до таблиці в БД
+    protected $guarded = false; // можливість запису даних в БД
+}
+
+Route::group(['namespace' => 'Main'],function() {
+    Route::get('/','IndexController')->name('main.index');
+});
+
+Route::group(['namespace' => 'Admin','prefix' => 'admin'], function() {
+    Route::group(['namespace' => 'Main'],function() {
+        Route::get('/','IndexController')->name('admin.main.index');
+    });
+
+    Route::group(['namespace' => 'Category','prefix' => 'categories'], function() {
+        Route::get('/','IndexController')->name('admin.categories.index');
+        Route::get('/create','CreateController')->name('admin.categories.create');
+        Route::post('/','StoreController')->name('admin.categories.store');
+    });
+});
+
+
+
+Auth::routes();
+
+
+php artisan make:request Admin/Category/StoreRequest
+
+class StoreController extends Controller
+{
+    public function __invoke(StoreRequest $request)
+    {
+        $data = $request->validated();
+        Category::FirstOrCreate(['title' => $data['title']],[
+            'title' => $data['title']
+        ]);
+
+        return redirect()->route('admin.categories.index');
+    }
+}
+
+php artisan make:migration add_column_soft_deletes_to_categories_table
+php artisan make:migration add_columns_for_images_to_posts_table
+
+ public function up()
+    {
+        Schema::table('posts', function (Blueprint $table) {
+            $table->string('preview_image')->nullable();
+            $table->string('main_image')->nullable();
+        });
+    }
+    
+     public function down()
+    {
+        Schema::table('posts', function (Blueprint $table) {
+            $table->dropColumn('preview_image');
+            $table->dropColumn('main_image');
+        });
+    }
+    
+    
+
+Storage 
+ $data['preview_image'] = Storage::put('/images', $data['preview_image']);
+        $data['main_image'] = Storage::put('/images', $data['main_image']);
+
 
 
 
